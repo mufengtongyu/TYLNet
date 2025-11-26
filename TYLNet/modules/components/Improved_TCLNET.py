@@ -345,40 +345,40 @@ class net(nn.Module):
 
 
         
+        # #################################################################
+        # ############ 修改处：替换为 ECABlock ############################
+        # self.att0 = ECABlock(channel=64)
+        #
+        # self.down1 = ResBlock(64,128)
+        # self.down2 = ResBlock(128,256)
+        # self.down3 = ResBlock(256,256)
+        #
+        # self.att1 = ECABlock(channel=256)
+        #
+        # self.up3 = ResBlock(256,256)
+        # self.up2 = ResBlock(256,128)
+        # self.up1 = ResBlock(128,64)
+        #
+        # self.att2 = ECABlock(channel=64)
+        
+
+        
         #################################################################
-        ############ 修改处：替换为 ECABlock ############################
-        self.att0 = ECABlock(channel=64)
+        ############ 修改处：替换为 SEBlock #############################
+        self.att0 = SEBlock(channel=64)
 
         self.down1 = ResBlock(64,128)
         self.down2 = ResBlock(128,256)
         self.down3 = ResBlock(256,256)
 
-        self.att1 = ECABlock(channel=256)
+        self.att1 = SEBlock(channel=256)
 
         self.up3 = ResBlock(256,256)
         self.up2 = ResBlock(256,128)
         self.up1 = ResBlock(128,64)
 
-        self.att2 = ECABlock(channel=64)
-        
-
-        
-        # #################################################################
-        # ############ 修改处：替换为 SEBlock #############################
-        # self.att0 = SEBlock(channel=64)
-
-        # self.down1 = ResBlock(64,128)
-        # self.down2 = ResBlock(128,256)
-        # self.down3 = ResBlock(256,256)
-
-        # self.att1 = SEBlock(channel=256)
-
-        # self.up3 = ResBlock(256,256)
-        # self.up2 = ResBlock(256,128)
-        # self.up1 = ResBlock(128,64)
-
-        # self.att2 = SEBlock(channel=64)
-        # #################################################################
+        self.att2 = SEBlock(channel=64)
+        #################################################################
 
 
 
@@ -420,17 +420,17 @@ class net(nn.Module):
         
         # # 原始代码
         # self.att0 = SKAttention(channel=64)
-
+        #
         # self.down1 = ResBlock(64,128)
         # self.down2 = ResBlock(128,256)
         # self.down3 = ResBlock(256,256)
-
+        #
         # self.att1 = SKAttention(channel=256)
-
+        #
         # self.up3 = ResBlock(256,256)
         # self.up2 = ResBlock(256,128)
         # self.up1 = ResBlock(128,64)
-
+        #
         # self.att2 = SKAttention(channel=64)
 
 
@@ -448,10 +448,10 @@ class net(nn.Module):
         x = self.maxpooling(self.down1(x))
         x = self.maxpooling(self.down2(x))
         x = self.maxpooling(self.down3(x))
-        # x = self.att1(x)
+        x = self.att1(x)
         x = self.upsampling(self.up3(x))
         x = self.upsampling(self.up2(x))
         x = self.upsampling(self.up1(x))
-        # x = self.att2(x)
+        x = self.att2(x)
         x = self.outter(x)
         return x

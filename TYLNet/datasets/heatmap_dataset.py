@@ -131,7 +131,19 @@ class heatmapDataset(cdataset):
         image_inputs = [cv2.imread(os.path.join(path, str(index + 1) + ".png"), cv2.IMREAD_GRAYSCALE).astype(np.float32)
                        for path in self.input_paths]
         # print(image_inputs[0])
-        image_heatmap = cv2.imread(os.path.join(self.heatmap_paths,str(index+1)+".png"),cv2.IMREAD_GRAYSCALE).astype(np.float32)
+        # image_heatmap = cv2.imread(os.path.join(self.heatmap_paths,str(index+1)+".png"),cv2.IMREAD_GRAYSCALE).astype(np.float32)
+        heatmap_path = os.path.join(self.heatmap_paths, str(index + 1) + ".png")
+        hm = cv2.imread(heatmap_path, cv2.IMREAD_GRAYSCALE)
+
+        if hm is None:
+            # 读不到 GT 热力图：比如非台风数据集，或文件缺失。
+            # 用一张全 0 的假热力图代替（尺寸用 img_size 或当前图像大小）
+            # 假设你的输入图像 size 是 224x224：
+            hm = np.zeros((224, 224), dtype=np.float32)
+        else:
+            hm = hm.astype(np.float32)
+
+        image_heatmap = hm
         kpoint = self.labels[index+1]
 
         image_input = [normalization(torch.from_numpy(img).unsqueeze(0).float() / 255,str(self.config['norm_type'])) for img in image_inputs]
