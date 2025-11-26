@@ -57,10 +57,32 @@ def test(config):
     save_npy[0][0],save_npy[0][1] = -1,-1
     
     # --- 3. 新增：检测逻辑和统计 ---
-    CONF_THRESHOLD = 0.2  # <-- 基于您的 (File 58) 结果
+    CONF_THRESHOLD = 0.4  # Updated threshold for typhoon detection
     detected_count = 0
     missed_count = 0
     total_count = len(dataset)
+
+    # --- Load category indices for per-class detection accuracy ---
+    category_files = [
+        ("TS", "Index2.npy"),
+        ("Cat1", "Index3.npy"),
+        ("Cat2", "Index4.npy"),
+        ("Cat3", "Index5.npy"),
+        ("Cat4", "Index6.npy"),
+        ("Cat5", "Index7.npy"),
+    ]
+
+    category_sets = {}
+    category_stats = {}
+    for cat_name, filename in category_files:
+        filepath = os.path.join(evaluation.data_dir, filename)
+        if os.path.exists(filepath):
+            indices = np.load(filepath)
+            category_sets[cat_name] = set(int(idx) for idx in indices.tolist())
+            category_stats[cat_name] = {"detected": 0, "total": len(indices)}
+        else:
+            category_sets[cat_name] = set()
+            category_stats[cat_name] = {"detected": 0, "total": 0}
     # ---------------------------------
 
     for i, data in enumerate(dataset):
@@ -70,12 +92,17 @@ def test(config):
         # --- 4. 新增：集成检测逻辑 ---
         # 从 (File 11) 的 test_result 中获取我们添加的 'CONFIDENCE'
         confidence = model.test_result[3][1]
-        index = data["PATH"].cpu().data.numpy()[0]
+        index = int(data["PATH"].cpu().data.numpy()[0])
 
         if confidence >= CONF_THRESHOLD:
             # 检测成功 (True Positive)
             detected_count += 1
-            
+
+            # 记录类别检测结果
+            for cat_name, idx_set in category_sets.items():
+                if index in idx_set:
+                    category_stats[cat_name]["detected"] += 1
+
             # --- 仅在检测成功时，才执行原有的保存逻辑 ---
             datapoints = (model.test_result[0][1]).cpu().data.numpy()
             save_npy[index][0],save_npy[index][1] = datapoints[0][0], datapoints[0][1]
@@ -107,6 +134,13 @@ def test(config):
     print(f"Detected (True Pos):  {detected_count}")
     print(f"Missed (False Neg):   {missed_count}")
     print(f"Detection Accuracy:   {detection_accuracy:.2f}%")
+    print("\n--- Per-Category Detection Accuracy ---")
+    for cat_name, stats in category_stats.items():
+        if stats["total"] == 0:
+            print(f"  {cat_name}: N/A (no samples)")
+        else:
+            cat_acc = (stats["detected"] / stats["total"]) * 100
+            print(f"  {cat_name}: {stats['detected']}/{stats['total']} ({cat_acc:.2f}%)")
     print("\n--- Localization Report (for Detected Samples) ---")
     print(f"Overall MAE (px): {l2_dist:.4f}")
     print(f"  Dist1 (TS):   {dist1:.4f}")
@@ -132,6 +166,17 @@ def test(config):
         text_file.write(f"Detected (True Pos):  {detected_count}\n")
         text_file.write(f"Missed (False Neg):   {missed_count}\n")
         text_file.write(f"Detection Accuracy:   {detection_accuracy:.2f}%\n\n")
+
+        text_file.write(f"--- Per-Category Detection Accuracy ---\n")
+        for cat_name, stats in category_stats.items():
+            if stats["total"] == 0:
+                text_file.write(f"{cat_name}: N/A (no samples)\n")
+            else:
+                cat_acc = (stats["detected"] / stats["total"]) * 100
+                text_file.write(
+                    f"{cat_name}: {stats['detected']}/{stats['total']} ({cat_acc:.2f}%)\n"
+                )
+        text_file.write("\n")
 
         text_file.write(f"--- Localization Report (for Detected Samples) ---\n")
         text_file.write(f"Overall MAE (px): {l2_dist:.4f}\n")
