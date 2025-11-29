@@ -10,6 +10,7 @@ class cmodel(ABC):
         # get device name: cpu/gpu
         self.device = torch.device('cuda:{}'.format(config['gpu_ids'][0])) if config['gpu_ids'] else torch.device('cpu')
         self.save_dir = os.path.join(config['checkpoints_dir'], config['name'])
+        os.makedirs(self.save_dir, exist_ok=True)
         self.schedulers = None
         self.gpu_ids = config['gpu_ids']
 
