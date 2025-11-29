@@ -1,7 +1,8 @@
 # training configs
 status: train
 # status: test
-name: TCLNET_se
+# name: TCLNET
+name: TYLNet
 train_batch_size: 32
 test_batch_size: 1
 gpu_ids: 0
@@ -11,6 +12,11 @@ scheduler_epoch: [15,30]
 gamma: 0.1
 resume_epoch: 0
 learning_rate: 0.001
+attention_module: se  # options: baseline, baseline_skip, se, skattention, cbam, resblock+cbam, ca, eca, simam
+use_skip_connection: False
+full_module_test_mode: True
+early_stop_patience: 10
+early_stop_delta: 0.0
 
 
 # model, dataset and preprocess options
@@ -34,16 +40,6 @@ lr_policy: step
 print_freq: 20
 num_threads: 4
 verbose: False
-
-
-
-
-
-
-
-
-
-
 
 
 
