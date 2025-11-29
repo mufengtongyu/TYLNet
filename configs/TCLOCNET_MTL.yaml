@@ -1,0 +1,41 @@
+# 文件: Improved-TCLNet - 副本/configs/TCLOCNET_MTL.yaml
+
+# 基础配置
+NAME: "TCLocNet_MTL_v1"
+OUTPUT_PATH: "./output/TCLocNet_MTL_v1/"
+status: "train" # 告诉 dataset 加载训练集
+dataset_mode: "heatmap" # 对应 heatmap_dataset.py
+dataroot: "/mnt/e/data/Improved-TCLNet/Improved-TCLNet/datasets/data/TCLDwithTSsame/" # 【重要】请修改为您的数据根目录
+
+# 设备
+num_threads: 4
+gpu_ids: [0]
+
+# 模型定义
+MODEL:
+  NAME: "TCLOCNET_MTL" # 对应 modules/models/TCLOCNET_MTL.py
+  CHECKPOINT: ""
+  INPUT_CHANNEL: 6 # 12通道多光谱输入
+
+# 训练参数
+TRAIN:
+  EPOCHS: 100
+  train_batch_size: 32
+  test_batch_size: 8
+  
+  # 多任务损失权重 (可调)
+  W_HEATMAP: 1.0 # 热图损失权重
+  W_CLS: 1.0     # 检测分类损失权重
+  W_REG: 1.0     # 检测回归损失权重
+  W_CTR: 1.0     # 检测中心度损失权重
+  
+  # 优化器
+  LR: 0.001
+  OPTIMIZER: "Adam"
+  LR_POLICY: "step"
+  LR_DECAY_ITERS: 30
+
+# 测试 (test.py 会使用)
+TEST:
+  TEST_EPOCH: "latest" # 加载最新的模型
+

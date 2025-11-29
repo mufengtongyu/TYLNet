@@ -1,0 +1,49 @@
+# ==== Python 通用 ====
+__pycache__/
+*.py[cod]
+*.so
+.ipynb_checkpoints/
+*.npy
+*.pyc
+
+# ==== 虚拟环境 ====
+env/
+.venv/
+venv/
+
+# ==== 模型权重 / 大文件 ====
+*.pth
+*.pt
+*.ckpt
+*.pth.tar
+*.h5
+*.npz
+*.npy
+*.pkl
+*.tar
+*.zip
+*.csv
+
+
+# 忽略所有图片
+*.jpg
+*.jpeg
+*.png
+*.gif
+*.svg
+*.webp
+*.bmp
+
+# ==== 实验输出 / 中间结果 ====
+experiments/
+models/backup/
+models/encoders/backup/
+logs/
+runs/
+output/
+tmp/
+temp/
+*.log
+*.tmp
+*.DESKTOP-44HK4I5
+
