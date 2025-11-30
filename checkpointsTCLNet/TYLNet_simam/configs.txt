@@ -1,5 +1,5 @@
 ----------------- Configs ---------------
-         attention_module: se                            
+         attention_module: simam                         
           checkpoints_dir: checkpointsTCLNet             
                crop_scale: 1.12                          
                  dataroot: /home/littlered/Documents/Improved-TCLNet/datasets/data/TCLDwithTSsame
@@ -8,7 +8,7 @@
       early_stop_patience: 10                            
                     epoch: 100                           
                      flip: True                          
-    full_module_test_mode: True                          
+    full_module_test_mode: False                         
                     gamma: 0.1                           
                   gpu_ids: 0                             
                  img_size: 224                           
@@ -17,11 +17,11 @@
             learning_rate: 0.001                         
                 lr_policy: step                          
                     model: TCLNET_STAGE1                 
-                     name: TYLNet                        
+                     name: TYLNet_simam                  
                 norm_type: standard                      
               num_threads: 4                             
                print_freq: 20                            
-              results_dir: testing_se                    
+              results_dir: testing_simam                 
              resume_epoch: 0                             
           save_epoch_freq: 1                             
           scheduler_epoch: [15, 30]                      
