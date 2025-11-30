@@ -11,6 +11,65 @@ import math
 ############ tools and components ###############################
 
 
+#################################################################
+############ 新增：h-sigmoid / h-swish 及 CA 模块 ################
+class h_sigmoid(nn.Module):
+    def __init__(self, inplace=True):
+        super(h_sigmoid, self).__init__()
+        self.relu = nn.ReLU6(inplace=inplace)
+
+    def forward(self, x):
+        return self.relu(x + 3) / 6
+
+
+class h_swish(nn.Module):
+    def __init__(self, inplace=True):
+        super(h_swish, self).__init__()
+        self.sigmoid = h_sigmoid(inplace=inplace)
+
+    def forward(self, x):
+        return x * self.sigmoid(x)
+
+
+class CABlock(nn.Module):
+    def __init__(self, channel, reduction=32):
+        super(CABlock, self).__init__()
+
+        self.pool_h = nn.AdaptiveAvgPool2d((None, 1))
+        self.pool_w = nn.AdaptiveAvgPool2d((1, None))
+
+        mip = max(8, channel // reduction)
+
+        self.conv1 = nn.Conv2d(channel, mip, kernel_size=1, stride=1, padding=0)
+        self.bn1 = nn.BatchNorm2d(mip)
+        self.act = h_swish()
+
+        self.conv_h = nn.Conv2d(mip, channel, kernel_size=1, stride=1, padding=0)
+        self.conv_w = nn.Conv2d(mip, channel, kernel_size=1, stride=1, padding=0)
+
+
+    def forward(self, x):
+        identity = x
+
+        n, c, h, w = x.size()
+        x_h = self.pool_h(x)
+        x_w = self.pool_w(x).permute(0, 1, 3, 2)
+
+        y = torch.cat([x_h, x_w], dim=2)
+        y = self.conv1(y)
+        y = self.bn1(y)
+        y = self.act(y)
+
+        x_h, x_w = torch.split(y, [h, w], dim=2)
+        x_w = x_w.permute(0, 1, 3, 2)
+
+        a_h = self.conv_h(x_h).sigmoid()
+        a_w = self.conv_w(x_w).sigmoid()
+
+        out = identity * a_w * a_h
+
+        return out
+
 
 #################################################################
 ############ 新增：残差注意力包装器 ##############################
@@ -20,7 +79,7 @@ class ResidualAttention(nn.Module):
         self.attention = attention_module
 
     def forward(self, x):
-        # 计算 x + Attention(x)
+        # 计算 x + Attention(x)␊
         return x + self.attention(x)
 
 #################################################################
@@ -250,10 +309,13 @@ class ResBlock(nn.Module):
         return out
 
 
+
 class net(nn.Module):
-    def __init__(self):
+    def __init__(self, attention_type="se", use_skip_connection=False):
         super(net, self).__init__()
         self.feature_maps = {}
+        self.use_skip_connection = use_skip_connection
+        self.attention_type = attention_type.lower()
 
         self.maxpooling = nn.MaxPool2d(2,2)
         self.upsampling = nn.Upsample(scale_factor=2)
@@ -261,158 +323,70 @@ class net(nn.Module):
         self.pre = nn.Sequential( ConvBlock(6, 16, 7, 2, use_bn=True, use_relu=True),
                                   ConvBlock(16,32, 1,1,use_bn=False,use_relu=False),
                                   ResBlock(32,32),
-                                  # SKAttention(channel=32,reduction=4),
-                                #   ECABlock(channel=32),
                                   nn.MaxPool2d(2, 2),
                                   ResBlock(32,32),
-                                  # SKAttention(channel=32, reduction=4),
-                                #   ECABlock(channel=32),
                                   ConvBlock(32,64,1, 1, use_bn=False, use_relu=False),
                                   ResBlock(64,64))
-        
-        # # =================================================================
-        # # ================== 基线模型：定义下采样和上采样模块 ==================
-        # self.down1 = ResBlock(64, 128)
-        # self.down2 = ResBlock(128, 256)
-        # self.down3 = ResBlock(256, 256)
 
-        # self.up3 = ResBlock(256, 256)
-        # self.up2 = ResBlock(256, 128)
-        # self.up1 = ResBlock(128, 64)
-        # # =================================================================
-
-        # #################################################################
-        # ############ 修改处：替换为 ResidualAttention(CBAM) #############
-        
-        # # 1. 先定义基础的注意力模块
-        # cbam0 = CBAM(channel=64)
-        # cbam1 = CBAM(channel=256)
-        # cbam2 = CBAM(channel=64)
-
-        # # 2. 用 ResidualAttention 包装器包装
-        # self.att0 = ResidualAttention(cbam0)
-        
-        # self.down1 = ResBlock(64,128)
-        # self.down2 = ResBlock(128,256)
-        # self.down3 = ResBlock(256,256)
-
-        # self.att1 = ResidualAttention(cbam1)
-
-        # self.up3 = ResBlock(256,256)
-        # self.up2 = ResBlock(256,128)
-        # self.up1 = ResBlock(128,64)
-
-        # self.att2 = ResidualAttention(cbam2)
-        # #################################################################
-
-
-
-        
-        # #################################################################
-        # ############ 修改处：替换为 ECABlock ############################
-        # self.att0 = ECABlock(channel=64)
-
-        # self.down1 = ResBlock(64,128)
-        # self.down2 = ResBlock(128,256)
-        # self.down3 = ResBlock(256,256)
-
-        # self.att1 = ECABlock(channel=256)
-
-        # self.up3 = ResBlock(256,256)
-        # self.up2 = ResBlock(256,128)
-        # self.up1 = ResBlock(128,64)
-
-        # self.att2 = ECABlock(channel=64)
-        
-
-        
-        #################################################################
-        ############ 修改处：替换为 SEBlock #############################
-        self.att0 = SEBlock(channel=64)
+        self.att0 = self._build_attention_block(channel=64)
 
         self.down1 = ResBlock(64,128)
         self.down2 = ResBlock(128,256)
         self.down3 = ResBlock(256,256)
 
-        self.att1 = SEBlock(channel=256)
+        self.att1 = self._build_attention_block(channel=256)
 
         self.up3 = ResBlock(256,256)
         self.up2 = ResBlock(256,128)
         self.up1 = ResBlock(128,64)
 
-        self.att2 = SEBlock(channel=64)
-        #################################################################
-
-
-
-        # #################################################################
-        # ############ 修改处：替换为 SimAM ###############################
-        # # SimAM 是无参数的，不需要指定 channel
-        # self.att0 = SimAM()
-
-        # self.down1 = ResBlock(64,128)
-        # self.down2 = ResBlock(128,256)
-        # self.down3 = ResBlock(256,256)
-
-        # self.att1 = SimAM()
-
-        # self.up3 = ResBlock(256,256)
-        # self.up2 = ResBlock(256,128)
-        # self.up1 = ResBlock(128,64)
-
-        # self.att2 = SimAM()
-
-
-        # #################################################################
-        # ############ 修改处：替换为 CBAM ################################
-        # self.att0 = CBAM(channel=64)
-
-        # self.down1 = ResBlock(64,128)
-        # self.down2 = ResBlock(128,256)
-        # self.down3 = ResBlock(256,256)
-
-        # self.att1 = CBAM(channel=256)
-
-        # self.up3 = ResBlock(256,256)
-        # self.up2 = ResBlock(256,128)
-        # self.up1 = ResBlock(128,64)
-
-        # self.att2 = CBAM(channel=64)
-        # #################################################################
-
-        # #################################################################
-        # # 原始代码
-        # self.att0 = SKAttention(channel=64)
-
-        # self.down1 = ResBlock(64,128)
-        # self.down2 = ResBlock(128,256)
-        # self.down3 = ResBlock(256,256)
-
-        # self.att1 = SKAttention(channel=256)
-
-        # self.up3 = ResBlock(256,256)
-        # self.up2 = ResBlock(256,128)
-        # self.up1 = ResBlock(128,64)
-
-        # self.att2 = SKAttention(channel=64)
-        # #################################################################
-
+        self.att2 = self._build_attention_block(channel=64)
 
         self.outter = nn.Sequential(ResBlock(64,64),
                                     ConvBlock(64, 64, 1, 1, use_bn=True, use_relu=True),
                                     ConvBlock(64, 1, 1, 1, use_bn=False, use_relu=False))
 
+    def _build_attention_block(self, channel):
+        if self.attention_type == 'baseline' or self.attention_type == 'baseline_skip':
+            return nn.Identity()
+        if self.attention_type == 'skattention':
+            return SKAttention(channel=channel)
+        if self.attention_type == 'cbam':
+            return CBAM(channel=channel)
+        if self.attention_type == 'resblock+cbam' or self.attention_type == 'resblock_cbam':
+            return ResidualAttention(CBAM(channel=channel))
+        if self.attention_type == 'ca':
+            return CABlock(channel=channel)
+        if self.attention_type == 'eca':
+            return ECABlock(channel=channel)
+        if self.attention_type == 'simam':
+            return SimAM()
+        # default to SE
+        return SEBlock(channel=channel)
 
     def forward(self, x):
         x = self.pre(x)
         x = self.att0(x)
+        if self.use_skip_connection:
+            skip0 = x
         x = self.maxpooling(self.down1(x))
+        if self.use_skip_connection:
+            skip1 = x
         x = self.maxpooling(self.down2(x))
+        if self.use_skip_connection:
+            skip2 = x
         x = self.maxpooling(self.down3(x))
         x = self.att1(x)
         x = self.upsampling(self.up3(x))
+        if self.use_skip_connection:
+            x = x + skip2
         x = self.upsampling(self.up2(x))
+        if self.use_skip_connection:
+            x = x + skip1
         x = self.upsampling(self.up1(x))
+        if self.use_skip_connection:
+            x = x + skip0
         x = self.att2(x)
         x = self.outter(x)
         return x
+    

@@ -10,6 +10,7 @@ class cmodel(ABC):
         # get device name: cpu/gpu
         self.device = torch.device('cuda:{}'.format(config['gpu_ids'][0])) if config['gpu_ids'] else torch.device('cpu')
         self.save_dir = os.path.join(config['checkpoints_dir'], config['name'])
+        os.makedirs(self.save_dir, exist_ok=True)
         self.schedulers = None
         self.gpu_ids = config['gpu_ids']
 
@@ -122,6 +123,7 @@ class cmodel(ABC):
             if isinstance(name, str):
                 save_filename = '%s_net_%s.pth' % (epoch, name)
                 save_path = os.path.join(self.save_dir, save_filename)
+                os.makedirs(self.save_dir, exist_ok=True)
                 net = getattr(self, 'net' + name)
 
                 if len(self.gpu_ids) > 0 and torch.cuda.is_available():
@@ -136,6 +138,7 @@ class cmodel(ABC):
         for optim in self.optimizers:
             save_filename = '%s_optim_%s.pth' % (epoch, optim[0])
             save_path = os.path.join(self.save_dir, save_filename)
+            os.makedirs(self.save_dir, exist_ok=True)
             torch.save(optim[1].state_dict(), save_path)
 
 

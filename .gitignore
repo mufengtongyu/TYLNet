@@ -38,6 +38,7 @@ venv/
 experiments/
 models/backup/
 models/encoders/backup/
+checkpointsTCLNet/backup
 logs/
 runs/
 output/

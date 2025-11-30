@@ -20,7 +20,8 @@ class network(cmodel):
         self.netG = backbone.create_backbone(net_name='TCLNET',
                                              init_type=config['init_type'],
                                              init_gain=float(config['init_gain']),
-                                             gpu_ids=config['gpu_ids'])
+                                             gpu_ids=config['gpu_ids'],
+                                             config=config)
 
         self.optimizer_G = torch.optim.Adam(self.netG.parameters(),lr=float(config['learning_rate']),betas=(0.5, 0.999),weight_decay=1e-4)
         self.optimizers.append(['G',self.optimizer_G])
